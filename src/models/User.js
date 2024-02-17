@@ -17,7 +17,7 @@ const userSchema = new mongoose.Schema({
 
 
     mobileNumber: {
-        type: String,
+        type: Number,
         required: true,
         unique: true
     },
@@ -33,8 +33,13 @@ const userSchema = new mongoose.Schema({
         type:String
     },
     mobileOTP: {
-        type: String,
-        default: null
+        type: Number,
+        default:null
+    },
+    mobileVerified: {
+        type: Boolean,
+        default: false,
+        required: true
     }
 });
 

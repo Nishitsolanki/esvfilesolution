@@ -1,17 +1,20 @@
 const User = require('../models/User');
 const emailVerification = require('../utils/emailVerification');
-const mobileOTP = require('../utils/mobileOTP');
 const validation = require('../utils/validation');
 const jwt = require('jsonwebtoken');
-const config = require('../config');
+// const config = require('../config');
 const { uploadFile } = require('../utils/aws') 
 const otpGenerator = require('otp-generator');
+const twilio = require('twilio');
+// TWILIO_PHONE_NUMBER
+const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN)
 
 
 exports.signup = async (req, res) => {
     try {
-        let file = req.files
+        // let file = req.files
         const { name, email, mobileNumber, password } = req.body;
+        const formattedMobileNumber = mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`;
 
         if(!name){
             return res.status(400).json({message:"name must be present"})
@@ -22,19 +25,16 @@ exports.signup = async (req, res) => {
             return res.status(400).json({ message: 'Invalid email or mobile number' });
         }
 
-        //  //__________If ProfileImage is not Given_____________
-        //  if (file.length == 0) return res.status(400).send({ status: false, message: "ProfileImage field is Mandatory" });
-
-        //  //_______If wrong key is given incase of ProfileImage_________
-        //  if (file[0].fieldname !== "profileImage") {
-        //      return res.status(400).send({ status: false, message: "Valid key is ProfileImage. Please provide file with key profileImage" });
-        //  }
- 
-        //  if (file && file.length > 0) {
-        //      let uploadImage = await uploadFile(file[0]);
-        //      req.body.profileImage = uploadImage
-        //      if(!validImage(req.body.profileImage)) return res.status(400).send({ status : false, message : "Invalid format of image"})
-        //  }
+        // let files = req.files
+        // if (files && files.length > 0) {
+          
+        //     let uploadedFileURL = await upload.uploadFile(files[0])
+          
+        //     req.body.profileImage = uploadedFileURL;
+        // }
+        // else {
+        //     res.status(400).send({ msg: "Files are required!" })
+        // }
 
         // Check if user already exists
         let user = await User.findOne({ email });
@@ -44,15 +44,14 @@ exports.signup = async (req, res) => {
 
         const otp = otpGenerator.generate(6, { upperCase: false, specialChars: false, alphabets: false });
 
-
         // Create new user
         user = new User({
             name,
             email,
-            mobileNumber,
+            mobileNumber:formattedMobileNumber,
             password,
             otp: otp,
-            isVerified: false 
+            mobileOTP: null, 
         });
 
         // Save user to database
@@ -99,25 +98,6 @@ exports.login = async (req, res) => {
     }
 };
 
-// exports.verifyEmail = async (req, res) => {
-//     try {
-//         const { email, verificationCode } = req.body;
-
-//         // Verify email
-//         const isVerified = await emailVerification.verifyEmail(email, verificationCode);
-//         if (!isVerified) {
-//             return res.status(400).json({ message: 'Invalid verification code' });
-//         }
-        
-//         await User.findOneAndUpdate({ email }, { $set: { isEmailVerified: true } });
-
-//         res.json({ message: 'Email verified successfully' });
-//     } catch (error) {
-//         console.error(error);
-//         res.status(500).json({ message: 'Internal server error' });
-//     }
-// };
-
 
 exports.verifyEmail = async (req, res) => {
     try {
@@ -128,13 +108,6 @@ exports.verifyEmail = async (req, res) => {
         if (!user) {
             return res.status(404).json({ message: 'User not found' });
         }
-
-        // // Verify email
-        // const isVerified = await emailVerification.verifyEmail(email, otp);
-        // if (!isVerified) {
-        //     return res.status(400).json({ message: 'Invalid verification code' });
-        // }
-        // console.log("Verification result:", isVerified)
 
         if (user.otp !== otp) {
             return res.status(400).json({ message: 'Incorrect OTP. Please try again.' });
@@ -152,42 +125,69 @@ exports.verifyEmail = async (req, res) => {
 
 
 
-
 exports.sendOTP = async (req, res) => {
     try {
         const { mobileNumber } = req.body;
 
-        // Generate and send OTP
-        const otp = await mobileOTP.sendOTP(mobileNumber);
-        if (!otp) {
-            return res.status(500).json({ message: 'Failed to send OTP' });
+        // Add country code if not provided
+        const formattedMobileNumber = mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`;
+
+        const mobileOTP = otpGenerator.generate(6, { upperCaseAlphabets: false, specialChars: false, lowerCaseAlphabets: false });
+
+        // Log generated OTP for debugging
+        console.log("Generated OTP:", mobileOTP);
+
+        // Update mobileOTP field for the user
+        const updatedUser = await User.findOneAndUpdate(
+            { mobileNumber: formattedMobileNumber },
+            { mobileOTP: mobileOTP },
+            { new: true } // Return the updated document
+        );
+
+        if (!updatedUser) {
+            // If user not found, handle it
+            return res.status(404).json({ success: false, message: "User not found" });
         }
 
-        // Update user's mobile OTP
-        await User.findOneAndUpdate({ mobileNumber }, { $set: { mobileOTP: otp } });
+        // Send SMS using Twilio
+        await client.messages.create({
+            body: `Your OTP is: ${mobileOTP}`,
+            to: formattedMobileNumber,
+            from: process.env.TWILIO_PHONE_NUMBER
+        });
 
-        res.json({ message: 'OTP sent successfully' });
+        return res.status(200).json({ success: true, msg: "OTP sent successfully" });
+
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });
     }
 };
 
+
+
 exports.verifyOTP = async (req, res) => {
     try {
-        const { mobileNumber, otp } = req.body;
+        const { mobileNumber, mobileOTP } = req.body;
+
+        const formattedMobileNumber = mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`;
 
         // Verify OTP
-        const isVerified = await mobileOTP.verifyOTP(mobileNumber, otp);
-        if (!isVerified) {
-            return res.status(400).json({ message: 'Invalid OTP' });
+        const otpData = await User.findOne({
+            mobileNumber :formattedMobileNumber,
+            mobileOTP
+        })
+        
+        if(!otpData){
+            return res.status(400).json({
+                success:false,msg:'you enterted wrong otp'
+            })
         }
 
-        // Update user's mobile OTP status
-    const otps =await User.findOneAndUpdate({ mobileNumber }, { $set: { mobileOTP: null } });
-    console.log(otps)
-
-        res.json({ message: 'Mobile OTP verified successfully' });
+        otpData.mobileVerified = true;
+        await otpData.save();
+        
+        return res.status(200).json({ success: true, message: 'Mobile OTP verified successfully' });
     } catch (error) {
         console.error(error);
         res.status(500).json({ message: 'Internal server error' });

@@ -1,6 +1,5 @@
 const nodemailer = require('nodemailer');
-const config = require('../config');
-const Verification = require('../models/Verification'); 
+// const config = require('../config');
 
 
 exports.sendVerificationEmail = async ( email, otp) => {
@@ -35,7 +34,3 @@ exports.sendVerificationEmail = async ( email, otp) => {
     }
 };
 
-exports.verifyEmail = async (email, verificationCode) => {
-    // Simulate verification process, should be implemented based on your application's logic
-    return verificationCode === verificationCode; // Replace '123456' with actual logic to verify code
-};

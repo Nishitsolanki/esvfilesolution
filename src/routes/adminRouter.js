@@ -3,7 +3,7 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 
 // Route to get all users
-router.get('/users', adminController.getAllUsers);
+router.get('/getAllUsers', adminController.getAllUsers);
 
 // Route to get a user by ID
 router.get('/users/:userId', adminController.getUserById);

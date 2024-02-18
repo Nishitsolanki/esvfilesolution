@@ -12,12 +12,11 @@ const userSchema = new mongoose.Schema({
     },
     // profileImage: {
     //     type: String,
-    //     required: true
+    //     required: true,
+    //     trim: true
     // },
-
-
     mobileNumber: {
-        type: Number,
+        type: String,
         required: true,
         unique: true
     },
@@ -41,6 +40,6 @@ const userSchema = new mongoose.Schema({
         default: false,
         required: true
     }
-});
+},{ timestams: true });
 
 module.exports = mongoose.model('User', userSchema);

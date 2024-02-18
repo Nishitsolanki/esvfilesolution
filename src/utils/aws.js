@@ -4,8 +4,8 @@ const aws = require("aws-sdk");
 
 
 aws.config.update({
-    accessKeyId: "AKIAY3L35MCRZNIRGT6N",
-    secretAccessKey: "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",
+    accessKeyId: "AKIA2I3GZBJV5JIYZVP4",
+    secretAccessKey: "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",
     region: "ap-south-1",
 })
 
@@ -16,10 +16,10 @@ var uploadFile = async (file) => {
         let s3 = new aws.S3({ apiVersion: "2006-03-01" });
 
         var uploadParams = {
-            ACL: "public-read",    //access control list
-            Bucket: "classroom-training-bucket", 
-            Key: "group27/" + file.originalname, 
+            Bucket: "classroom-training-bucket",
+            Key: "group27/" + file.originalname,
             Body: file.buffer,
+            ACL: "public-read",
         };
 
         s3.upload(uploadParams, function (err, data) {

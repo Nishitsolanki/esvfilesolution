@@ -12,8 +12,11 @@ const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TO
 
 exports.signup = async (req, res) => {
     try {
-        // let file = req.files
-        const { name, email, mobileNumber, password } = req.body;
+
+        const data = req.body
+        let file = req.files
+    
+        const { name, email, mobileNumber, password } = data
         const formattedMobileNumber = mobileNumber.startsWith('+') ? mobileNumber : `+91${mobileNumber}`;
 
         if(!name){
@@ -23,18 +26,19 @@ exports.signup = async (req, res) => {
         // Validate email and mobile number
         if (!validation.isValidEmail(email) || !validation.isValidMobileNumber(mobileNumber)) {
             return res.status(400).json({ message: 'Invalid email or mobile number' });
-        }
 
-        // let files = req.files
-        // if (files && files.length > 0) {
-          
-        //     let uploadedFileURL = await upload.uploadFile(files[0])
-          
-        //     req.body.profileImage = uploadedFileURL;
+        //__________If ProfileImage is not Given_____________
+        }
+        // if (file.length == 0) return res.status(400).send({ status: false, message: "ProfileImage field is Mandatory" });
+
+        // //_______If wrong key is given incase of ProfileImage_________
+
+        // if (file && file.length > 0) {
+        //     let uploadImage = await uploadFile(file[0]);
+        //     data.profileImage = uploadImage
+        //     if(!validImage(data.profileImage)) return res.status(400).send({ status : false, message : "Invalid format of image"})
         // }
-        // else {
-        //     res.status(400).send({ msg: "Files are required!" })
-        // }
+        
 
         // Check if user already exists
         let user = await User.findOne({ email });
@@ -89,7 +93,7 @@ exports.login = async (req, res) => {
         }
 
         // Generate JWT token
-        const token = jwt.sign({ userId: user._id }, config.jwtSecret);
+        const token = jwt.sign({ userId: user._id }, "secreteKey");
 
         res.json({ token });
     } catch (error) {
